@@ -6,37 +6,45 @@ services:
       context: elasticsearch/
       args:
         ELK_VERSION: $ELK_VERSION
+    container_name: elasticsearch
     volumes:
-      - type: bind
-        source: ./elasticsearch/config/elasticsearch.yml
-        target: /usr/share/elasticsearch/config/elasticsearch.yml
-        read_only: true
-      - type: volume
-        source: elasticsearch
-        target: /usr/share/elasticsearch/data
+      - volume1:/usr/share/elasticsearch/data
     ports:
       - "9200:9200"
       - "9300:9300"
     environment:
-      ES_JAVA_OPTS: "-Xmx256m -Xms256m"
+      ES_JAVA_OPTS: "-Xmx512m -Xms512m"
       ELASTIC_PASSWORD: changeme
+      discovery.type: single-node
     networks:
       - elk
+  filebeat:
+    build:
+      context: filebeat/
+      args:
+        ELK_VERSION: $ELK_VERSION
+    container_name: filebeat
+    volumes:
+      - volume2:/usr/share/filebeat/data
+    ports:
+      - "5044:5044"
+      - "9000:9000"
+    command: --strict.perms=false
+    environment:
+      - setup.kibana.host=kibana:5601
+    networks:
+      - elk
+    depends_on:
+      - elasticsearch
 
   logstash:
     build:
       context: logstash/
       args:
         ELK_VERSION: $ELK_VERSION
+    container_name: logstash
     volumes:
-      - type: bind
-        source: ./logstash/config/logstash.yml
-        target: /usr/share/logstash/config/logstash.yml
-        read_only: true
-      - type: bind
-        source: ./logstash/pipeline
-        target: /usr/share/logstash/pipeline
-        read_only: true
+      - volume2:/usr/share/logstash/data
     ports:
       - "5000:5000"
       - "9600:9600"
@@ -52,11 +60,9 @@ services:
       context: kibana/
       args:
         ELK_VERSION: $ELK_VERSION
+    container_name: kibana
     volumes:
-      - type: bind
-        source: ./kibana/config/kibana.yml
-        target: /usr/share/kibana/config/kibana.yml
-        read_only: true
+      - volume3:/usr/share/kibana/data
     ports:
       - "5601:5601"
     networks:
@@ -69,4 +75,9 @@ networks:
     driver: bridge
 
 volumes:
-  elasticsearch:
+  volume1:
+    driver: local
+  volume2:
+    driver: local
+  volume3:
+    driver: local
